@@ -1,0 +1,61 @@
+name: Total Mayhem Wiki Generator for icons
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+
+  generate-icons:
+      runs-on: ubuntu-latest
+      defaults:
+        run:
+          shell: bash
+
+      steps:
+        # Checkout repos
+
+        - name: Checkout Total Mayhem repository
+          uses: actions/checkout@v4
+          with:
+              repository: FAForever/fa-total-mayhem
+              path: mods/fa-total-mayhem
+              ref: master
+              sparse-checkout-cone-mode: |
+                icons/units
+
+        # Install Image Magick
+        - name: Install Image Magick
+          run: |
+            sudo apt-get install -y imagemagick
+
+        # copy unit icons and convert them to PNGs
+        - name: Convert Strategic Icons
+          working-directory: mods/fa-total-mayhem
+          run: |
+            wiki/icons-convert-unit.sh
+
+        # Rename the generated icons to the correct case so that the wiki generator will play nice.
+        # Note this also causes a problem with two specific units that use mixed case in the blueprint files
+        - name: Rename generated icon names
+          working-directory: mods/fa-total-mayhem
+          run: |
+            wiki/rename-icons.sh wiki/generated/units wiki/generated/renamed
+        
+        # The resulting files will then be copied into the wiki folder structure
+        - name: Move Generated Icons
+          run: |
+            [ ! -d "mods/fa-total-mayhem/wiki/icons/units" ] && mkdir -p "mods/fa-total-mayhem/wiki/icons/units"
+            mv -f mods/fa-total-mayhem/wiki/generated/renamed/*.png mods/fa-total-mayhem/wiki/icons/units
+
+        # Upload as an artifact, exclude things we dont need
+        - name: Upload as artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: generated-icons
+            path: |
+              mods/fa-total-mayhem/wiki
+              !./mods/fa-total-mayhem/wiki/generated
+              !./mods/fa-total-mayhem/wiki/Run.lua
+              !./mods/fa-total-mayhem/wiki/icons-convert-unit.sh
+              !./mods/fa-total-mayhem/wiki/rename-icons.sh
